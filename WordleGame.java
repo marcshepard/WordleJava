@@ -93,16 +93,21 @@ public class WordleGame {
         }
     }
 
-    // PRIVATE SUPPORT METHODS
-    // Prune a list based on guess and pattern
-    private static void pruneList (ArrayList<String> list, String guess, String pattern) {
-        for (int i = list.size()-1; i >= 0; i--) {
-            String word = list.get(i);
-            if (!getPattern(guess, word).equals(pattern)) {
-                list.remove(i);
-            }
+    // PUBLIC analysis methods
+    // For a particular guess, calculte the expected number of letter matches
+    // Exact matches (right letter, right slot) are given a weight of 1; user can define how
+    // may points to give to close matches (right letter, wrong slot)
+    public static double expectedMatches (String guess, ArrayList<String> remainingAnswers, double partialMatchWeight) {
+        double matches = 0;
+        for (String answer : remainingAnswers) {
+            String pattern = getPattern(guess, answer);
+            matches += Utils.count(pattern, MATCH);
+            matches += partialMatchWeight * Utils.count(pattern, CLOSE);
         }
+        matches /= remainingAnswers.size();
+        return matches;
     }
+
     // For a particular guess, calculate the expected number of possible answers after that guess
     public static double expectedRemaining (String guess, ArrayList<String> remainingAnswers) {
         // First create a hashmap to track the number of remainingAnswers that would produce each pattern
@@ -129,6 +134,17 @@ public class WordleGame {
         }
 
         return expected;
+    }
+
+    // PRIVATE SUPPORT METHODS
+    // Prune a list based on guess and pattern
+    private static void pruneList (ArrayList<String> list, String guess, String pattern) {
+        for (int i = list.size()-1; i >= 0; i--) {
+            String word = list.get(i);
+            if (!getPattern(guess, word).equals(pattern)) {
+                list.remove(i);
+            }
+        }
     }
 
     // Get pattern that a given guess would yield if a given word was the answer

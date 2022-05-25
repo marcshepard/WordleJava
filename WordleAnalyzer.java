@@ -66,6 +66,7 @@ public class WordleAnalyzer {
         }
     }
 
+    // Analyze the currently selected algo: avg steps, # failures, hardest words
     public static void analyzeAlgo (boolean hardMode) {
         String[] possibleAnswers = WordleWords.getPossibleAnswers();
         int answersAnalyzed = 0;    // Analyze all possible answers
@@ -101,43 +102,54 @@ public class WordleAnalyzer {
     public static void evaluateStartingWord(String starterWord) {
         ArrayList<String> allAnswers = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
         double expectedRemaining = WordleGame.expectedRemaining(starterWord, allAnswers);
+        double expectedMatches = WordleGame.expectedMatches(starterWord, allAnswers,.8);
         System.out.println ("Average remaining words after that guess: " + expectedRemaining);
+        System.out.println ("Average letter matches for that guess (.8 for wrong position): " + expectedMatches);
     }
     
     // Evaluate opening words based on various statistics, including average numbers of letters matched, and
     // expected number of words remaining.
     public static void evaluateStartingWords() {
         HashMap<String, Double> expectedRemaining = new HashMap<>();
-        //HashMap<String, Double> expectedLetterMatch = new HashMap<>();
+        HashMap<String, Double> expectedMatchCount = new HashMap<>();
         ArrayList<String> allAnswers = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
 
-        System.out.println ("15 starting words that lead to (on average) the smallest set of remaining answers");
         for (String starterWord : WordleWords.getPossibleAnswers()) {
             expectedRemaining.put(starterWord, WordleGame.expectedRemaining(starterWord, allAnswers));
+            expectedMatchCount.put(starterWord, WordleGame.expectedMatches(starterWord, allAnswers, .8));
         }
-        printSmallest (expectedRemaining, 15);
+
+        System.out.println ("15 starting words that lead to (on average) the smallest set of remaining answers");
+        printTop (expectedRemaining, 15, false);
+
+        System.out.println ("\n15 starting words that lead to (on average) the most matched letters");
+        printTop (expectedMatchCount, 15, true);
     }
 
-    // Print top n smallest values in a hash map
-    public static void printSmallest(HashMap<String, Double> h, int n) {
-        String key = findSmallest(h);
+    // Print top n values in a hash map
+    public static void printTop(HashMap<String, Double> h, int n, boolean largest) {
+        String key = findTop(h, largest);
         Double value = h.get(key);
         System.out.println (key + "\t" + value);
         if (n > 0) {
             h.remove(key);
-            printSmallest(h, n-1);
+            printTop(h, n-1, largest);
             h.put(key, value);
         }
     }
 
     // Find the hashmap key with the smallest value
-    public static String findSmallest (HashMap<String, Double> h) {
-        String smallestKey = null;
+    public static String findTop (HashMap<String, Double> h, boolean largest) {
+        String topKey = null;
         for (String key : h.keySet()) {
-            if (smallestKey == null || h.get(key) < h.get(smallestKey))
-                smallestKey = key;
+            if (topKey == null)
+                topKey = key;
+            else if (!largest && h.get(key) < h.get(topKey))
+                topKey = key;
+            else if (largest && h.get(key) > h.get(topKey))
+                topKey = key;
         }
-        return smallestKey;
+        return topKey;
     }
 }
 
