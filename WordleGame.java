@@ -13,8 +13,10 @@ import java.util.HashMap;
 import java.lang.Math;
 
 public class WordleGame {
+    public enum Algo {LeastRemaining, MostLetters};
     // INSTANCE VARIABLES
-    private boolean hardMode = false;           // Is hard mode enables for this game?
+    private boolean hardMode = false;           // Only guess remaining possible answers, or all answers?
+    private Algo algo = Algo.LeastRemaining;    // Algorithm to use for solving
     private boolean verbose = false;            // Display each step of play to stdout
     private static String[] possibleAnswers = WordleWords.getPossibleAnswers(); // the 2309 answers in Wordle
     private String starterWord = null;          // Starter word - if null then calculate it via algo
@@ -25,19 +27,16 @@ public class WordleGame {
     public static final char MISS =  'R'; // Wrong letter (R = red)
     public static final String WINNING_PATTERN = "GGGGG";
     public static final int WORD_SIZE = 5;
+    public static final double MATCHING_WEIGHT = .8;
 
-    public WordleGame (boolean hardMode, boolean verbose, String starterWord) {
+    public WordleGame (boolean hardMode, boolean verbose, Algo algo) {
         this.hardMode = hardMode;
         this.verbose = verbose;
-        this.starterWord = starterWord;
-    }
-
-    public WordleGame (boolean hardMode, boolean verbose) {
-        this (hardMode, verbose, null);
+        this.algo = algo;
     }
 
     public WordleGame () {
-        this (false, true, null);
+        this (false, true, Algo.LeastRemaining);
     }
 
     // PUBLIC METHODS
@@ -47,6 +46,11 @@ public class WordleGame {
         Utils.verify (getPattern ("loyal", "album").equals ("YRRYR"));
         Utils.verify (getPattern ("melee", "peeps").equals ("RGRYR"));
         Utils.verify (getPattern ("crane", "ziggy").equals ("RRRRR"));
+    }
+
+    // Set the starting word (null = revert to default value)
+    public void setStarterWord (String starterWord) {
+        this.starterWord = starterWord;
     }
 
     // Have wordle analyzer play the game, trying to guess a randomly generated answer
@@ -61,20 +65,45 @@ public class WordleGame {
         ArrayList<String> remainingAnswers = new ArrayList<>(Arrays.asList(possibleAnswers));
         ArrayList<String> possibleGuesses = hardMode ? remainingAnswers : new ArrayList<>(Arrays.asList(possibleAnswers));
 
+        // Optimization to precompute initial word (makes evaluating algo over all answers way faster in hard mode)
+        String bestGuess = starterWord;
+        double score = possibleAnswers.length;
         if (starterWord == null) {
-            starterWord = "raise";
+            if (algo == Algo.LeastRemaining) {
+                bestGuess = "raise";
+                score = 60.74404504114335;
+            } else {
+                bestGuess = "stare";
+                score = 1.5272412299696931;
+            }
+        } else {
+            if (algo == Algo.LeastRemaining) {
+                score = expectedRemaining(starterWord, remainingAnswers);
+            } else {
+                score = expectedMatches(starterWord, remainingAnswers, MATCHING_WEIGHT);
+            }
         }
  
-        for (int turn = 1; ; turn++) {
+        for (int turn = 1; turn < 20; turn++) {
             // Find the guess that will result in the lowest expected number of remainingAnswers
-            String bestGuess = starterWord;
-            double bestExpectedRemaining = possibleAnswers.length;
             if (turn > 1) {
-                for (String guess : possibleGuesses) {
-                    double expectedRemaining = expectedRemaining(guess, remainingAnswers);
-                    if (expectedRemaining < bestExpectedRemaining) {
-                        bestExpectedRemaining = expectedRemaining;
-                        bestGuess = guess;
+                if (algo == Algo.LeastRemaining) {
+                    score = remainingAnswers.size();
+                    for (String guess : possibleGuesses) {
+                        double expectedRemaining = expectedRemaining(guess, remainingAnswers);
+                        if (expectedRemaining < score) {
+                            score = expectedRemaining;
+                            bestGuess = guess;
+                        }
+                    }
+                } else {
+                    score = 0;
+                    for (String guess : possibleGuesses) {
+                        double expectedMatches = expectedMatches(guess, remainingAnswers, MATCHING_WEIGHT);
+                        if (expectedMatches > score) {
+                            score = expectedMatches;
+                            bestGuess = guess;
+                        }
                     }
                 }
             }
@@ -82,7 +111,7 @@ public class WordleGame {
             // Print some information about the guess and it's results, and prune the possibleAnswers list
             String guess = bestGuess;
             trace ("Guess #" + turn + ": " + guess);
-            trace ("\t" + "Expected remaining words: " + bestExpectedRemaining);
+            trace ("\t" + (algo == Algo.LeastRemaining ? "Expected remaining words" : "Expected matches") + ": " + score);
             String pattern = getPattern(guess, answer);
             trace ("\t" + "Pattern: " + pattern);
             pruneList (remainingAnswers, guess, pattern);
@@ -91,6 +120,9 @@ public class WordleGame {
             }
             trace ("\t" + "Actual remaining words: " + remainingAnswers.size());
         }
+
+        System.err.println ("Error: Failed to solve wordle in 20 turns!");
+        return 20;
     }
 
     // PUBLIC analysis methods
@@ -109,6 +141,8 @@ public class WordleGame {
     }
 
     // For a particular guess, calculate the expected number of possible answers after that guess
+    // We look at what pattern the guess would create for each possible answer, then aggregate
+    // the possible answers by those patterns, then figure out the  
     public static double expectedRemaining (String guess, ArrayList<String> remainingAnswers) {
         // First create a hashmap to track the number of remainingAnswers that would produce each pattern
         HashMap<String, Integer> buckets = new HashMap<>();
@@ -136,8 +170,86 @@ public class WordleGame {
         return expected;
     }
 
+    public static void cheat () {
+        System.out.println ("Welcome to WordleAnalyzer cheat mode, to help you solve a live puzzle");
+        System.out.println ("On each turn, you can type one of the following");
+        System.out.println ("\tword pattern\twhere word is a valid wordle answer, and pattern is 5 letter R/Y/G");
+        System.out.println ("\t\tR=wrong letter, Y=right letter, wrong position, G=right letter and position");
+        System.out.println ("\t\tE.g., foyer RRYRG");
+        System.out.println ("\th\tto get a hint - repeating this command gives bigger hints");
+        System.out.println ("\tword\tto get feedback on the word you are considering playing");
+        
+        ArrayList<String> possibleWords = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
+        ArrayList<String> remainingAnswers = possibleWords;
+        int turn = 1;
+        int hintLevel = 0;
+
+        while (true) {    
+            String command = Utils.input ("Turn " + turn + ". What do you want to do? ");
+
+            if (command.indexOf(" ") > 0) {
+                int i = command.indexOf(" ");
+                String guess = command.substring(0, i).trim().toLowerCase();
+                if (!possibleWords.contains(guess)) {
+                    System.out.println (guess + " is not one of the 2309 valid wordle answers");
+                    continue;
+                }
+                String pattern = command.substring(i + 1).trim().toUpperCase();
+                if (pattern.length() != 5 || pattern.replace("R","").replace("G", "").replace("Y","").length() != 0) {
+                    System.out.println (pattern + " is not a valid 5 letter pattern containing just R, G, or Y");
+                    continue;
+                }
+                double expectedRemaining = expectedRemaining(guess, remainingAnswers);
+                if (pattern == WINNING_PATTERN) {
+                    System.out.println ("Nice job!");
+                    return;
+                }
+                if (expectedRemaining == 0) {
+                    System.out.println ("That is not possible - it would lead to no remaining answers but not a winning (GGGGG) pattern!!!");
+                    continue;
+                }
+                pruneList(remainingAnswers, guess, pattern);
+                turn++;
+                hintLevel = 0;
+            } else if (command.equals("h")) {
+                switch (hintLevel) {
+                    default:
+                    case 2:
+                        String bestGuess = remainingAnswers.get(0);
+                        double bestExpectedRemaining = remainingAnswers.size();
+                        for (String guess : possibleWords) {
+                            double expectedRemaining = expectedRemaining(guess, remainingAnswers);
+                            if (expectedRemaining < bestExpectedRemaining) {
+                                bestExpectedRemaining = expectedRemaining;
+                                bestGuess = guess;
+                            }
+                        }
+                        System.out.println ("Recommend guess: " + bestGuess + ". It averages " + bestExpectedRemaining + " remaining words and " 
+                            + expectedMatches(bestGuess, remainingAnswers, 1) + " matched letters, of which "
+                            + expectedMatches(bestGuess, remainingAnswers, 0) + " are exact matches (right letter and position)");
+                    case 1:
+                        System.out.print ("Remaining answers: ");
+                        for (int i = 0; i < remainingAnswers.size(); i++) {
+                            if (i > 10) {
+                                System.out.print ("...");
+                                break;
+                            }
+                            System.out.print (remainingAnswers.get(i) + " ");
+                        }
+                        System.out.println();
+                    case 0:
+                        System.out.println(remainingAnswers.size() + " remaining answers left");
+                    hintLevel++;
+                }
+            } else {
+                System.out.println ("TODO - implement word");
+            }
+        }
+    }
+
     // PRIVATE SUPPORT METHODS
-    // Prune a list based on guess and pattern
+    // Prune a list of possible answers based on a guess and the pattern that guess returned
+    // Possible answers that would not produce that pattern from that guess are removed
     private static void pruneList (ArrayList<String> list, String guess, String pattern) {
         for (int i = list.size()-1; i >= 0; i--) {
             String word = list.get(i);

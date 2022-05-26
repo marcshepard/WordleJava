@@ -12,27 +12,50 @@ import java.util.HashMap;
 
 public class WordleAnalyzer {
     public static void main (String[] args) {
-        System.out.println ("Welcome to wordle analyzer! Available commands:");
-        System.out.println ("\tp\thave the computer solve a random wordle");
-        System.out.println ("\tp <x>\thave the computer try to solve wordle with your choice, <x>, of word");
-        System.out.println ("\ta\tanalyze the solving algo across all possible answers");
-        System.out.println ("\ts\tanalyze stats on starting words");
-        System.out.println ("\ts <x>\tanalyze stats on your choice, <x>, of starting word");
-        System.out.println ("\th\ttoggle hard mode (default is on, making algo much faster but slightly worse)");
-        System.out.println ("\tq\tquit");
+        System.out.println ("Welcome to wordle analyzer, which uses one of two AI algos to solve wordle puzzles.");
+
         boolean hardMode = true;
+        WordleGame.Algo algo = WordleGame.Algo.LeastRemaining;
+        String startingWord = null;
 
         while (true) {
-            String command = Utils.input("\nWhat do you want to do? ").trim().toLowerCase();
+            String command = Utils.input("\nWhat do you want to do (type ? for help)? ").trim().toLowerCase();
             switch (command.substring(0, 1)) {
                 case "q":
                     return;
+                case "?":
+                    help();
+                    break;
                 case "h":
                     hardMode = !hardMode;
                     System.out.println ("Hard mode is now " + hardMode);
                     break;
+                case "a":
+                    if (algo == WordleGame.Algo.LeastRemaining) {
+                        algo = WordleGame.Algo.MostLetters;
+                        System.out.println ("Algo will select a guess to maximize expected number of matching letters");
+                    } else {
+                        algo = WordleGame.Algo.LeastRemaining;
+                        System.out.println ("Algo will select a guess to minimize expected number of remaining words");
+                    }
+                    break;
+                case "w":
+                    if (command.length() == 1) {
+                        startingWord = null;
+                        System.out.println ("Reset starting word to algo default");
+                    } else {
+                        String word = command.substring(1).trim();
+                        if (!Arrays.asList(WordleWords.getPossibleAnswers()).contains(word)) {
+                            System.out.println (word + " is not a valid Worldle answer");
+                            continue;
+                        }
+                        startingWord = word;
+                        System.out.println ("Starting word set to " + word);
+                    }
+                    break;
                 case "p":
-                    WordleGame wa = new WordleGame(hardMode, true);
+                    WordleGame wa = new WordleGame(hardMode, true, algo);
+                    wa.setStarterWord(startingWord);
                     if (command.length() == 1) {
                         wa.play();
                     } else {
@@ -44,8 +67,8 @@ public class WordleAnalyzer {
                         wa.play(word);
                     }
                     break;
-                case "a":
-                    analyzeAlgo(hardMode);
+                case "e":
+                    evaluateAlgo(hardMode, algo, startingWord);
                     break;
                 case "s":
                     if (command.length() == 1) {
@@ -59,6 +82,9 @@ public class WordleAnalyzer {
                         evaluateStartingWord(word);
                     }
                     break;
+                case "c":
+                    WordleGame.cheat();
+                    break;
                 default:
                     System.out.println ("Invalid command");
 
@@ -66,8 +92,24 @@ public class WordleAnalyzer {
         }
     }
 
+    public static void help () {
+        System.out.println ("WordleAnalyzer implements some basic AI algos to analyze wordle puzzles.");
+        System.out.println ("One algo selects guesses designed to minimize the number of remaining words.");
+        System.out.println ("The other picks a guesses designed to maximize the number of matches letters.");
+        System.out.println ("You will see output of 5 letter 'patterns' for each guess; R(red)=miss, Y(yellow)=right letter, wrong slot, G(green)=right letter, right slot");
+        System.out.println ("Available commands:");
+        System.out.println ("\th\ttoggle hard mode (default is on, making algo much faster but slightly worse)");
+        System.out.println ("\ta\ttoggle algo (default is least remaining words, which solves quicker)");
+        System.out.println ("\tw [w]\toverride starting word to 'w', or leave out 'w' to revert to algo default");
+        System.out.println ("\tp [w]\thave the computer solve a random wordle, or optionally specify the answer, w");
+        System.out.println ("\te\tevaluate the current algo across all possible answers");
+        System.out.println ("\ts [w]\tanalyze stats on top starting words, or optionally your choice of word, w");
+        System.out.println ("\tc\tcheat by having wordle analyzer help you with a live wordle");
+        System.out.println ("\tq\tquit");
+    }
+
     // Analyze the currently selected algo: avg steps, # failures, hardest words
-    public static void analyzeAlgo (boolean hardMode) {
+    public static void evaluateAlgo (boolean hardMode, WordleGame.Algo algo, String starterWord) {
         String[] possibleAnswers = WordleWords.getPossibleAnswers();
         int answersAnalyzed = 0;    // Analyze all possible answers
         int totalSteps = 0;         // Count total steps for all words (e.g., 3 + 4 + ...)
@@ -76,7 +118,8 @@ public class WordleAnalyzer {
         int maxSteps = 0;           // Defined by having the largest number of steps required to solve them
 
         for (String answer : possibleAnswers) {
-            WordleGame g = new WordleGame(hardMode, false);
+            WordleGame g = new WordleGame(hardMode, false, algo);
+            g.setStarterWord(starterWord);
             int turns = g.play(answer);
             answersAnalyzed++;
             totalSteps += turns;
