@@ -11,6 +11,22 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 public class WordleAnalyzer {
+    private static String help =
+        "WordleAnalyzer implements some basic AI algos to analyze wordle puzzles.\n" +
+        "One algo selects guesses designed to minimize the number of remaining words.\n" +
+        "The other picks a guesses designed to maximize the number of matches letters.\n" +
+        "You will see output of 5 letter 'patterns' for each guess; R(red)=miss, Y(yellow)=right letter, wrong slot, G(green)=right letter, right slot\n" +
+        "Available commands:\n" +
+        " h     toggle hard mode (default is on, making algo much faster but slightly worse)\n" +
+        " a     toggle algo (default is least remaining words, which solves quicker)\n" +
+        " w [x] override starting word to your choice for 'x', or leave out 'x' to revert to algo default\n" +
+        "\n" +
+        " p [w] have current algo/mode/starter word try to solve a random wordle, or optionally specify the puzzle answer, w\n" +
+        " e     evaluate the current algo/mode/starter word across all possible answers (avg steps to solve, etc)\n" +
+        "\n" +
+        " t [w] analyze stats on top starting words, or optionally your choice of starter word, w\n" +
+        " c     cheat by having wordle analyzer help you with a live wordle\b" +
+        " q     quit\n";
     public static void main (String[] args) {
         System.out.println ("Welcome to wordle analyzer, which uses one of two AI algos to solve wordle puzzles.");
 
@@ -24,7 +40,7 @@ public class WordleAnalyzer {
                 case "q":
                     return;
                 case "?":
-                    help();
+                    System.out.println (help);
                     break;
                 case "h":
                     hardMode = !hardMode;
@@ -92,22 +108,6 @@ public class WordleAnalyzer {
         }
     }
 
-    public static void help () {
-        System.out.println ("WordleAnalyzer implements some basic AI algos to analyze wordle puzzles.");
-        System.out.println ("One algo selects guesses designed to minimize the number of remaining words.");
-        System.out.println ("The other picks a guesses designed to maximize the number of matches letters.");
-        System.out.println ("You will see output of 5 letter 'patterns' for each guess; R(red)=miss, Y(yellow)=right letter, wrong slot, G(green)=right letter, right slot");
-        System.out.println ("Available commands:");
-        System.out.println ("\th\ttoggle hard mode (default is on, making algo much faster but slightly worse)");
-        System.out.println ("\ta\ttoggle algo (default is least remaining words, which solves quicker)");
-        System.out.println ("\tw [w]\toverride starting word to 'w', or leave out 'w' to revert to algo default");
-        System.out.println ("\tp [w]\thave the computer solve a random wordle, or optionally specify the answer, w");
-        System.out.println ("\te\tevaluate the current algo across all possible answers");
-        System.out.println ("\ts [w]\tanalyze stats on top starting words, or optionally your choice of word, w");
-        System.out.println ("\tc\tcheat by having wordle analyzer help you with a live wordle");
-        System.out.println ("\tq\tquit");
-    }
-
     // Analyze the currently selected algo: avg steps, # failures, hardest words
     public static void evaluateAlgo (boolean hardMode, WordleGame.Algo algo, String starterWord) {
         String[] possibleAnswers = WordleWords.getPossibleAnswers();
@@ -165,7 +165,7 @@ public class WordleAnalyzer {
         System.out.println ("15 starting words that lead to (on average) the smallest set of remaining answers");
         printTop (expectedRemaining, 15, false);
 
-        System.out.println ("\n15 starting words that lead to (on average) the most matched letters");
+        System.out.println ("\n15 starting words that lead to (on average) the most matched letters (counting 'right letter/wrong spot' as '.8' of a match");
         printTop (expectedMatchCount, 15, true);
     }
 
