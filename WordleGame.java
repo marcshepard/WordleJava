@@ -114,10 +114,12 @@ public class WordleGame {
             trace ("\t" + (algo == Algo.LeastRemaining ? "Expected remaining words" : "Expected matches") + ": " + score);
             String pattern = getPattern(guess, answer);
             trace ("\t" + "Pattern: " + pattern);
-            pruneList (remainingAnswers, guess, pattern);
             if (pattern.equals(WINNING_PATTERN)) {
                 return turn;
             }
+            remainingAnswers = pruneList (remainingAnswers, guess, pattern);
+            if (hardMode)
+                possibleGuesses = remainingAnswers;
             trace ("\t" + "Actual remaining words: " + remainingAnswers.size());
         }
 
@@ -179,19 +181,23 @@ public class WordleGame {
         System.out.println ("\th\tto get a hint - repeating this command gives bigger hints");
         System.out.println ("\tword\tto get feedback on the word you are considering playing");
         
-        ArrayList<String> possibleWords = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
+        ArrayList<String> possibleWords = WordleWords.getPossibleAnswersArrayList();
         ArrayList<String> remainingAnswers = possibleWords;
         int turn = 1;
         int hintLevel = 0;
 
-        while (true) {    
-            String command = Utils.input ("Turn " + turn + ". What do you want to do? ");
+        while (true) {
+            if (turn > 6) {
+                System.out.println ("Out of turns - better luck next time!");
+                return;
+            }
+            String command = Utils.input ("Turn " + turn + ". What do you want to do? ").trim().toLowerCase();
 
             if (command.indexOf(" ") > 0) {
                 int i = command.indexOf(" ");
-                String guess = command.substring(0, i).trim().toLowerCase();
-                if (!possibleWords.contains(guess)) {
-                    System.out.println (guess + " is not one of the 2309 valid wordle answers");
+                String guess = command.substring(0, i);
+                if (!WordleWords.getPossibleAnswersArrayList().contains(guess)) {
+                    System.out.println (guess + " is not a valid wordle guess");
                     continue;
                 }
                 String pattern = command.substring(i + 1).trim().toUpperCase();
@@ -200,7 +206,7 @@ public class WordleGame {
                     continue;
                 }
                 double expectedRemaining = expectedRemaining(guess, remainingAnswers);
-                if (pattern == WINNING_PATTERN) {
+                if (pattern.equals(WINNING_PATTERN)) {
                     System.out.println ("Nice job!");
                     return;
                 }
@@ -208,7 +214,7 @@ public class WordleGame {
                     System.out.println ("That is not possible - it would lead to no remaining answers but not a winning (GGGGG) pattern!!!");
                     continue;
                 }
-                pruneList(remainingAnswers, guess, pattern);
+                remainingAnswers = pruneList(remainingAnswers, guess, pattern);
                 turn++;
                 hintLevel = 0;
             } else if (command.equals("h")) {
@@ -224,9 +230,8 @@ public class WordleGame {
                                 bestGuess = guess;
                             }
                         }
-                        System.out.println ("Recommend guess: " + bestGuess + ". It averages " + bestExpectedRemaining + " remaining words and " 
-                            + expectedMatches(bestGuess, remainingAnswers, 1) + " matched letters, of which "
-                            + expectedMatches(bestGuess, remainingAnswers, 0) + " are exact matches (right letter and position)");
+                        System.out.printf ("Recommend guess: %s. It averages %.2f remaining words and %.2f matched letters, of which %.2f are exact matches (right letter and position)\n",
+                            bestGuess, bestExpectedRemaining, expectedMatches(bestGuess, remainingAnswers, 1), expectedMatches(bestGuess, remainingAnswers, 0));
                     case 1:
                         System.out.print ("Remaining answers: ");
                         for (int i = 0; i < remainingAnswers.size(); i++) {
@@ -242,21 +247,35 @@ public class WordleGame {
                     hintLevel++;
                 }
             } else {
-                System.out.println ("TODO - implement word");
+                String guess = command;
+                if (!WordleWords.getPossibleAnswersArrayList().contains(guess)) {
+                    System.out.println (guess + " is not an allowed guess");
+                    System.out.println ("This analyzer currently only allows guessing one of the 2309 possible wordle answers (until I implement a work-around for the JVM 65k byte static initializer limit to support guessing any word allowed by Wordle)");
+                    continue;
+                }
+                System.out.println ("Some information about your guess " + guess + ":");
+                if (!remainingAnswers.contains(guess)) {
+                    System.out.println("\tIt is not one of the remaining possible answers");
+                }
+                System.out.printf ("\tExpected # matching letters: %.2f with %.2f in the right position\n",
+                    expectedMatches(guess, remainingAnswers, 1), expectedMatches(guess, remainingAnswers, 0));
+                System.out.printf ("\tExpected # remaining answers: %.2f\n", expectedRemaining(guess, remainingAnswers));
             }
         }
     }
 
+
     // PRIVATE SUPPORT METHODS
     // Prune a list of possible answers based on a guess and the pattern that guess returned
     // Possible answers that would not produce that pattern from that guess are removed
-    private static void pruneList (ArrayList<String> list, String guess, String pattern) {
-        for (int i = list.size()-1; i >= 0; i--) {
-            String word = list.get(i);
-            if (!getPattern(guess, word).equals(pattern)) {
-                list.remove(i);
+    private static ArrayList<String> pruneList (ArrayList<String> list, String guess, String pattern) {
+        ArrayList<String> prunedList = new ArrayList<>();
+        for (String word : list) {
+            if (getPattern(guess, word).equals(pattern)) {
+                prunedList.add(word);
             }
         }
+        return prunedList;
     }
 
     // Get pattern that a given guess would yield if a given word was the answer

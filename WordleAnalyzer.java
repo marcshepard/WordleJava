@@ -7,7 +7,6 @@ Author - Marc Shepard
 */
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 
 public class WordleAnalyzer {
@@ -61,7 +60,7 @@ public class WordleAnalyzer {
                         System.out.println ("Reset starting word to algo default");
                     } else {
                         String word = command.substring(1).trim();
-                        if (!Arrays.asList(WordleWords.getPossibleAnswers()).contains(word)) {
+                        if (!WordleWords.getPossibleAnswersArrayList().contains(word)) {
                             System.out.println (word + " is not a valid Worldle answer");
                             continue;
                         }
@@ -76,7 +75,7 @@ public class WordleAnalyzer {
                         wa.play();
                     } else {
                         String word = command.substring(1).trim();
-                        if (!Arrays.asList(WordleWords.getPossibleAnswers()).contains(word)) {
+                        if (!WordleWords.getPossibleAnswersArrayList().contains(word)) {
                             System.out.println (word + " is not a valid Worldle answer");
                             continue;
                         }
@@ -91,7 +90,7 @@ public class WordleAnalyzer {
                         evaluateStartingWords();
                     } else {
                         String word = command.substring(1).trim();
-                        if (!Arrays.asList(WordleWords.getPossibleAnswers()).contains(word)) {
+                        if (!WordleWords.getPossibleAnswersArrayList().contains(word)) {
                             System.out.println (word + " is not a valid Worldle answer");
                             continue;
                         }
@@ -143,7 +142,7 @@ public class WordleAnalyzer {
 
     // Evaluate a particular starting word
     public static void evaluateStartingWord(String starterWord) {
-        ArrayList<String> allAnswers = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
+        ArrayList<String> allAnswers = WordleWords.getPossibleAnswersArrayList();
         double expectedRemaining = WordleGame.expectedRemaining(starterWord, allAnswers);
         double expectedMatches = WordleGame.expectedMatches(starterWord, allAnswers,.8);
         System.out.println ("Average remaining words after that guess: " + expectedRemaining);
@@ -155,7 +154,7 @@ public class WordleAnalyzer {
     public static void evaluateStartingWords() {
         HashMap<String, Double> expectedRemaining = new HashMap<>();
         HashMap<String, Double> expectedMatchCount = new HashMap<>();
-        ArrayList<String> allAnswers = new ArrayList<>(Arrays.asList(WordleWords.getPossibleAnswers()));
+        ArrayList<String> allAnswers = WordleWords.getPossibleAnswersArrayList();
 
         for (String starterWord : WordleWords.getPossibleAnswers()) {
             expectedRemaining.put(starterWord, WordleGame.expectedRemaining(starterWord, allAnswers));
