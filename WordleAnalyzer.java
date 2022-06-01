@@ -23,7 +23,7 @@ public class WordleAnalyzer {
         " p [w] have current algo/mode/starter word try to solve a random wordle, or optionally specify the puzzle answer, w\n" +
         " e     evaluate the current algo/mode/starter word across all possible answers (avg steps to solve, etc)\n" +
         "\n" +
-        " t [w] analyze stats on top starting words, or optionally your choice of starter word, w\n" +
+        " s [w] analyze stats on top starting words, or optionally your choice of starter word, w\n" +
         " c     cheat by having wordle analyzer help you with a live wordle\b" +
         " q     quit\n";
     public static void main (String[] args) {
