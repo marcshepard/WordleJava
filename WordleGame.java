@@ -196,7 +196,7 @@ public class WordleGame {
             if (command.indexOf(" ") > 0) {
                 int i = command.indexOf(" ");
                 String guess = command.substring(0, i);
-                if (!WordleWords.getPossibleAnswersArrayList().contains(guess)) {
+                if (!WordleWords.getAllowedGuessesArrayList().contains(guess)) {
                     System.out.println (guess + " is not a valid wordle guess");
                     continue;
                 }
