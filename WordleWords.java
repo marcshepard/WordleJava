@@ -43,6 +43,7 @@ public class WordleWords {
         if (allowedGuessesArrayList == null) {
             allowedGuessesArrayList = new ArrayList<>(Arrays.asList(getAllowedGuesses()));
         }
+        allowedGuessesArrayList.addAll (getPossibleAnswersArrayList());
         return allowedGuessesArrayList;
     }
     
