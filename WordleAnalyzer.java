@@ -90,8 +90,8 @@ public class WordleAnalyzer {
                         evaluateStartingWords();
                     } else {
                         String word = command.substring(1).trim();
-                        if (!WordleWords.getPossibleAnswersArrayList().contains(word)) {
-                            System.out.println (word + " is not a valid Worldle answer");
+                        if (!WordleWords.getAllowedGuessesArrayList().contains(word)) {
+                            System.out.println (word + " is not a valid Worldle guess");
                             continue;
                         }
                         evaluateStartingWord(word);
