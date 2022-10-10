@@ -15,6 +15,7 @@ public class WordleUserGame {
     private ArrayList<String> remainingAnswers; // The possible answers remaining (there are initially 2309 of them)
     private ArrayList<String> allowedGuesses;   // The possible guesses remaining (there are initially over 10k of them)
     private boolean hardMode;                   // Only guess remaining possible answers, or all answers?
+    private int hintLevel = 0;                  // Hint level, each hint request provides more detail
 
     // CONSTANTS used for specifying the "pattern" of colors associated with a given guess
     public static final char MATCH = 'G'; // Right letter, right position (G = green)
@@ -53,8 +54,110 @@ public class WordleUserGame {
         remainingAnswers = pruneList(remainingAnswers, guess, pattern);
         if (hardMode)
             allowedGuesses = pruneList(allowedGuesses, guess, pattern);
-        turn++;
+        turn++;             // Advance the turn
+        hintLevel = 0;      // Reset the hint level
         return pattern;
+    }
+
+    // Get a hint on what to do next, optionally considering the users selection of possible word
+    public String getHint(String word) {
+        if (turn == 1) {
+            return getOpeningWordAnalysis(word);
+        }
+        String hint = "There are " + remainingAnswers.size() + " remaining answers left.\n";
+        if (hintLevel >= 1) {
+            for (int i = 0; i < remainingAnswers.size(); i++) {
+                if (i > 10) {
+                    hint += "...";
+                    break;
+                }
+                hint += remainingAnswers.get(i) + " ";
+            }
+            hint += "\n";
+        }
+        if (hintLevel >= 2) {
+            String bestGuess = remainingAnswers.get(0);
+            double bestExpectedRemaining = remainingAnswers.size();
+            for (String guess : remainingAnswers) {
+                double expectedRemaining = expectedRemaining(guess, remainingAnswers);
+                if (expectedRemaining < bestExpectedRemaining) {
+                    bestExpectedRemaining = expectedRemaining;
+                    bestGuess = guess;
+                }
+            }
+            hint += String.format ("Recommend guess: %s. Over all possible answers, it averages:\n\t%.2f remaining words\n\t%.2f matched letters, of which %.2f are exact matches (right letter and position)\n",
+                bestGuess, bestExpectedRemaining, expectedMatches(bestGuess, remainingAnswers, 1), expectedMatches(bestGuess, remainingAnswers, 0));
+            if (word != null) {
+                word = word.toLowerCase();
+                if (word.length() == 5 && !word.equals(bestGuess)) {
+                    hint += String.format ("Your guess: %s. Over all possible answers, it averages:\n\t%.2f remaining words\n\t%.2f matched letters, of which %.2f are exact matches (right letter and position)\n",
+                    word, expectedRemaining(word, remainingAnswers), expectedMatches(word, remainingAnswers, 1), expectedMatches(word, remainingAnswers, 0));
+                    hint += "\tYou guess " + (remainingAnswers.contains(word) ? "is": "is not") + " one of the remaining possible answers";
+                }
+            }
+        }
+        if (hintLevel < 2) {
+            hint += "The next hint will provide more information";
+        }
+        hintLevel++;
+        return hint;
+    }
+
+    // Analyze top opening words, and optionally add a user-specified word for comparison
+    public String getOpeningWordAnalysis (String word) {
+        String s = "";
+
+        HashMap<String, Double> expectedRemaining = new HashMap<>();
+        HashMap<String, Double> expectedMatchCount = new HashMap<>();
+        ArrayList<String> allAnswers = WordleWords.getPossibleAnswersArrayList();
+
+        for (String starterWord : WordleWords.getPossibleAnswers()) {
+            expectedRemaining.put(starterWord, expectedRemaining(starterWord, allAnswers));
+            expectedMatchCount.put(starterWord, expectedMatches(starterWord, allAnswers, .8));
+        }
+
+        s += "15 starting words that lead to (on average) the smallest set of remaining answers\n";
+        s += getTop (expectedRemaining, 15, false);
+
+        s += "\n15 starting words that lead to (on average) the most matched letters (counting 'right letter/wrong spot' as '.8' of a match\n";
+        s += getTop (expectedMatchCount, 15, true);
+
+        if (word != null && word.length() == 5) {
+            word = word.toLowerCase();
+            s += "\nFor your starting word " + word + "\n";
+            s += "Average remaining answers: " + expectedRemaining(word, allAnswers) + "\n";
+            s += "Average matched letters: " + expectedMatches(word, allAnswers, .8)  + "\n";
+        }
+
+        return s;
+    }
+
+    // Find the top n hashmap keys with the smallest or largest values
+    private static String getTop(HashMap<String, Double> h, int n, boolean largest) {
+        String result = "";
+        String key = findTop(h, largest);
+        Double value = h.get(key);
+        result += key + "\t" + value + "\n";
+        if (n > 0) {
+            h.remove(key);
+            result += getTop(h, n-1, largest);
+            h.put(key, value);
+        }
+        return result;
+    }
+
+    // Find the hashmap key with the smallest or largest value
+    private static String findTop (HashMap<String, Double> h, boolean largest) {
+        String topKey = null;
+        for (String key : h.keySet()) {
+            if (topKey == null)
+                topKey = key;
+            else if (!largest && h.get(key) < h.get(topKey))
+                topKey = key;
+            else if (largest && h.get(key) > h.get(topKey))
+                topKey = key;
+        }
+        return topKey;
     }
 
     // Returns 1-6, or 7 if all guesses have been taken
@@ -134,5 +237,49 @@ public class WordleUserGame {
         }
 
         return new String(pattern);
+    }
+
+    // For a particular guess, calculate the expected number of letter matches
+    // Exact matches (right letter, right slot) are given a weight of 1; user can define how
+    // may points to give to close matches (right letter, wrong slot)
+    private static double expectedMatches (String guess, ArrayList<String> remainingAnswers, double partialMatchWeight) {
+        double matches = 0;
+        for (String answer : remainingAnswers) {
+            String pattern = calculatePattern(guess, answer);
+            matches += Utils.count(pattern, MATCH);
+            matches += partialMatchWeight * Utils.count(pattern, CLOSE);
+        }
+        matches /= remainingAnswers.size();
+        return matches;
+    }
+
+    // For a particular guess, calculate the expected number of possible answers after that guess
+    // We look at what pattern the guess would create for each possible answer, then aggregate
+    // the possible answers by those patterns, then figure out the  
+    private static double expectedRemaining (String guess, ArrayList<String> remainingAnswers) {
+        // First create a hashmap to track the number of remainingAnswers that would produce each pattern
+        HashMap<String, Integer> buckets = new HashMap<>();
+        for (String answer : remainingAnswers) {
+            String pattern = calculatePattern(guess, answer);
+            if (!buckets.containsKey(pattern)) {
+                buckets.put(pattern, 1);
+            } else {
+                buckets.put(pattern, buckets.get(pattern) + 1);
+            }
+        }
+
+        // Next, find the expected value of remaining answers
+        // This is done by multiplying the probability of each bucket (=# answers in that bucket/total remaining answer)
+        // with it's size.
+        double expected = 0;
+        if (buckets.containsKey(WINNING_PATTERN)) {
+            buckets.put(WINNING_PATTERN, 0);    // Winning pattern means nothing left to guess after
+        }
+        for (String pattern : buckets.keySet()) {
+            double bucketSize = buckets.get(pattern);
+            expected += (bucketSize/remainingAnswers.size()) * bucketSize;
+        }
+
+        return expected;
     }
 }
