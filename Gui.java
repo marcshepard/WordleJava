@@ -1,6 +1,12 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.Serializable;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 
 // A GUI for the wordle app
@@ -10,6 +16,7 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     private WordleUserGame game;                // Underlying game engine
     private boolean gameOver = false;
     private JButton[] buttons;
+    private PersistedState persistedState;
     private static final String[] buttonNames = {"New Game", "Hint", "Stats", "Cheat", "Settings"};
     private final static int NEW_GAME=0;
     private final static int HINT=1;
@@ -17,17 +24,14 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     private final static int CHEAT=3;
     private final static int SETTINGS=4;
 
-    // Default configuration
-    private boolean hardMode = false;
-    private boolean colorBlindMode = true;
-
     Gui () {
         setTitle("Yet Another Wordle App");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 800);
         setBackground(ColorScheme.backgroundColor);
 
-        ColorScheme.setColorblindMode (colorBlindMode);
+        persistedState = PersistedState.restore();
+        ColorScheme.setColorblindMode (persistedState.colorBlindMode);
 
         JPanel buttonPanel = new JPanel();
         buttons = new JButton[buttonNames.length];
@@ -67,7 +71,7 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     }
 
     private void startGame() {
-        game = new WordleUserGame(hardMode);    // Create a new game
+        game = new WordleUserGame(persistedState.hardMode);    // Create a new game
         wordlePanel.reset();                    // Reset the entry screen
         messageBox.setText("");            // Clear any messages
         buttons[NEW_GAME].setEnabled(false);  // Disable the "New Game" button while game is in progress
@@ -86,7 +90,7 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
         } else if (button == buttons[HINT]) {
             messageBox.setText(game.getHint(wordlePanel.getWord()));
         } else if (button == buttons[STATS]) {
-            messageBox.setText("TODO - implement stats");
+            messageBox.setText(persistedState.getStatsString());
         } else if (button == buttons[CHEAT]) {
             messageBox.setText("TODO - implement cheat");
         } else if (button == buttons[SETTINGS]) {
@@ -132,10 +136,14 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
             if (pattern.equals(WordleUserGame.WINNING_PATTERN)) {
                 gameOver = true;
                 messageBox.setText("You won!");
+                persistedState.gameResults[game.getTurn()]++;
+                persistedState.save();
                 buttons[NEW_GAME].setEnabled(true);
             } else if (game.getTurn() > 6) {
                 gameOver = true;
                 messageBox.setText("You lost! The answer was " + game.getAnswer());
+                persistedState.gameResults[0]++;
+                persistedState.save();
                 buttons[NEW_GAME].setEnabled(true);
             } else {
                 wordlePanel.nextRow();
@@ -268,3 +276,60 @@ class ColorScheme {
         }
     }
 }
+
+// PersistedState - state we persist across games
+class PersistedState implements Serializable {
+    boolean hardMode;
+    boolean colorBlindMode = true;
+    int[] gameResults = new int[7]; // Each index has count of games won in that many turns (index 0 is for lost games)
+    private static String fileName = "GameState.ser";
+  
+    // Save state to GameState.ser
+    boolean save () {      
+        try {
+            FileOutputStream fos = new FileOutputStream(fileName);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(this);
+            oos.close();
+            fos.close();
+            return true;
+        } catch (IOException e) {
+            System.err.println(e);
+            return false;
+        }
+    }
+  
+    // Returns GameState - serialized from GameState.ser if possible, else
+    // create a new default GameState object 
+    static PersistedState restore () {      
+        try {
+            FileInputStream fis = new FileInputStream(fileName);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            PersistedState s = (PersistedState) ois.readObject();
+            ois.close();
+            fis.close();
+            return s;
+        } catch(Exception e) { // IOException, ClassNotFoundException
+            return new PersistedState();
+        }
+    }
+
+    String getStatsString () {
+        int numGames = 0;
+        for (int games : gameResults) {
+            numGames += games;
+        }
+        if (numGames == 0) {
+            return "No games have been played";
+        }
+
+        String statsString = String.format ("Total games: %d \n", numGames);
+        statsString += String.format ("Games lost: %d (%d%%)\n", gameResults[0], 100*gameResults[0]/numGames);
+        statsString += String.format ("Games won: %d\n", numGames - gameResults[0]);
+        for (int ix = 1; ix < gameResults.length; ix++) {
+            statsString += String.format ("\t%d:\t%d\n", ix, gameResults[ix]);
+        }
+
+        return statsString;
+    }
+  }
