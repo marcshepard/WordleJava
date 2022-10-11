@@ -6,7 +6,7 @@ import java.awt.event.*;
 // A GUI for the wordle app
 public class Gui extends JFrame implements KeyListener, ActionListener {
     private WordleEntryPanel wordlePanel;       // Main grid for entering guesses
-    private MessageBox messageBox;              // A place to give the user feedback text
+    private ScrollableMessageBox messageBox;    // A place to give the user feedback text
     private WordleUserGame game;                // Underlying game engine
     private boolean gameOver = false;
     private JButton[] buttons;
@@ -17,19 +17,17 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     private final static int CHEAT=3;
     private final static int SETTINGS=4;
 
-    // TODO - make these configurable in settings (hard mode and color blind mode)
+    // Default configuration
     private boolean hardMode = false;
-    private Color backgroundColor = Color.BLACK;
-    private Color forgroundColor = Color.WHITE;
-    private Color matchColor = Color.ORANGE;        // Color.GREEN;
-    private Color closeColor = Color.BLUE;          // Color.YELLOW;
-    private Color missColor = Color.DARK_GRAY;
+    private boolean colorBlindMode = true;
 
     Gui () {
         setTitle("Yet Another Wordle App");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 800);
-        setBackground(backgroundColor);
+        setBackground(ColorScheme.backgroundColor);
+
+        ColorScheme.setColorblindMode (colorBlindMode);
 
         JPanel buttonPanel = new JPanel();
         buttons = new JButton[buttonNames.length];
@@ -38,28 +36,25 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
             buttons[i].addActionListener(this);
             buttonPanel.add (buttons[i]);
         }
-        buttonPanel.setBackground(backgroundColor);
+        buttonPanel.setBackground(ColorScheme.backgroundColor);
         buttonPanel.setPreferredSize(new Dimension (getWidth(), getHeight()/10));
         add (buttonPanel, BorderLayout.NORTH);
 
         wordlePanel = new WordleEntryPanel();
-        wordlePanel.setBackground(Color.BLACK);
+        wordlePanel.setBackground(ColorScheme.backgroundColor);
         add(wordlePanel, BorderLayout.CENTER);
 
-        messageBox = new MessageBox();
-        messageBox.setBackground(backgroundColor);
-        messageBox.setForeground(forgroundColor);
+        messageBox = new ScrollableMessageBox();
         messageBox.setPreferredSize(new Dimension (getWidth(), getHeight()/5));
-        messageBox.setEnabled(false);
         add (messageBox, BorderLayout.SOUTH);
 
         JPanel p = new JPanel();
         p.setPreferredSize(new Dimension (getWidth()/10, getHeight()/8));
-        p.setBackground(backgroundColor);
+        p.setBackground(ColorScheme.backgroundColor);
         add (p, BorderLayout.EAST);
         p = new JPanel();
         p.setPreferredSize(new Dimension (getWidth()/10, getHeight()/8));
-        p.setBackground(backgroundColor);
+        p.setBackground(ColorScheme.backgroundColor);
         add (p, BorderLayout.WEST);
 
         startGame();
@@ -122,13 +117,13 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
             for (int i = 0; i < pattern.length(); i++) {
                 switch (pattern.charAt(i)) {
                     case WordleUserGame.MATCH:
-                        wordlePanel.setColor(i, matchColor);
+                        wordlePanel.setColor(i, ColorScheme.matchColor);
                         break;
                     case WordleUserGame.CLOSE:
-                        wordlePanel.setColor(i, closeColor);
+                        wordlePanel.setColor(i, ColorScheme.closeColor);
                         break;
                     case WordleUserGame.MISS:
-                        wordlePanel.setColor(i, missColor);
+                        wordlePanel.setColor(i, ColorScheme.missColor);
                         break;
                     default:
                         System.err.println ("Unknown pattern character " + pattern.charAt(i) + " in pattern string " + pattern);
@@ -159,8 +154,6 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
 class WordleEntryPanel extends JPanel {
     private static final int ROWS = 6;
     private static final int COLS = 5;
-    private static final Color backgroundColor = Color.DARK_GRAY;
-    private static final Color foregroundColor = Color.DARK_GRAY;
     private JButton grid[][] = new JButton[ROWS][COLS];
     private int currentRow;
     private int currentCol;
@@ -176,8 +169,8 @@ class WordleEntryPanel extends JPanel {
                 JButton b = new JButton();
                 grid[r][c] = b;
                 add(b);
-                b.setBackground(backgroundColor);
-                b.setForeground(foregroundColor);
+                b.setBackground(ColorScheme.backgroundColor);
+                b.setForeground(ColorScheme.foregroundColor);
                 b.setEnabled(false);
                 b.setFont(font);
             }
@@ -190,7 +183,7 @@ class WordleEntryPanel extends JPanel {
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
                 grid[r][c].setText("");
-                grid[r][c].setBackground(backgroundColor);
+                grid[r][c].setBackground(ColorScheme.backgroundColor);
                 if (r != 0)
                     grid[r][c].setVisible(false);
             }
@@ -240,10 +233,38 @@ class WordleEntryPanel extends JPanel {
 }
 
 // A class to use for providing the end-user with text feedback
-class MessageBox extends JTextArea {
-    MessageBox() {
-        setEditable(false);
-        setLineWrap(true);
-        setWrapStyleWord(true);
+class ScrollableMessageBox extends JScrollPane {
+    private JTextArea textArea;
+
+    ScrollableMessageBox() {
+        textArea = new JTextArea();
+        textArea.setBackground(ColorScheme.backgroundColor);
+        textArea.setForeground(ColorScheme.foregroundColor);
+        textArea.setEnabled(false);
+        setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);  
+        setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        setViewportView (textArea);
+    }
+
+    void setText (String text) {
+        textArea.setText(text);
+    }
+}
+
+class ColorScheme {
+    static Color backgroundColor = Color.BLACK;
+    static Color foregroundColor = Color.WHITE;
+    static Color matchColor = Color.GREEN;
+    static Color closeColor = Color.YELLOW;
+    static Color missColor = Color.DARK_GRAY;
+
+    static void setColorblindMode (boolean enabled) {
+        if (enabled) {
+            matchColor = Color.ORANGE;
+            closeColor = Color.BLUE;
+        } else {
+            matchColor = Color.GREEN;
+            closeColor = Color.YELLOW;
+        }
     }
 }
