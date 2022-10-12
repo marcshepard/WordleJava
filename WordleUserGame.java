@@ -16,6 +16,7 @@ public class WordleUserGame {
     private ArrayList<String> allowedGuesses;   // The possible guesses remaining (there are initially over 10k of them)
     private boolean hardMode;                   // Only guess remaining possible answers, or all answers?
     private int hintLevel = 0;                  // Hint level, each hint request provides more detail
+    private boolean gameOver = false;
 
     // CONSTANTS used for specifying the "pattern" of colors associated with a given guess
     public static final char MATCH = 'G'; // Right letter, right position (G = green)
@@ -35,11 +36,10 @@ public class WordleUserGame {
         turn = 1;
     }
 
-    // Let the user take a guess
+    // Let the user take a guess against the current answer
     // Returns the color pattern, or null if invalid guess or out of turns
     public String guess (String guess) {
-        // Out of turns
-        if (turn > 6) {
+        if (gameOver) {
             return null;
         }
         
@@ -54,9 +54,54 @@ public class WordleUserGame {
         remainingAnswers = pruneList(remainingAnswers, guess, pattern);
         if (hardMode)
             allowedGuesses = pruneList(allowedGuesses, guess, pattern);
-        turn++;             // Advance the turn
-        hintLevel = 0;      // Reset the hint level
+        
+        hintLevel = 0;      // Reset the hint level after each new guess
+
+        if (!pattern.equals(WINNING_PATTERN)) {
+            turn++;
+        }
+        
+        if (pattern.equals(WINNING_PATTERN) || turn > 6) {
+            gameOver = true;
+        }
+        
         return pattern;
+    }
+
+    // In cheat mode (for live wordle), let the user enter their guess and the pattern they got back
+    // Returns true if guess and pattern are valid entries
+    public boolean guess (String guess, String pattern) {
+        if (gameOver) {
+            return false;
+        }
+        
+        // Invalid guess
+        guess = guess.toLowerCase();
+        if (!allowedGuesses.contains(guess)) {
+            return false;
+        }
+
+        // Else calculate the pattern and prune the lists
+        ArrayList<String> answersAfterGuess = pruneList(remainingAnswers, guess, pattern);
+        if (answersAfterGuess.size() == 0)
+            return false;
+
+        remainingAnswers = answersAfterGuess;
+
+        if (hardMode)
+            allowedGuesses = pruneList(allowedGuesses, guess, pattern);
+        
+        hintLevel = 0;      // Reset the hint level after each new guess
+
+        if (pattern != WINNING_PATTERN) {
+            turn++;
+        }
+        
+        if (pattern == WINNING_PATTERN || turn > 6) {
+            gameOver = true;
+        }
+        
+        return true;
     }
 
     // Get a hint on what to do next, optionally considering the users selection of possible word
@@ -167,6 +212,10 @@ public class WordleUserGame {
 
     public String getAnswer () {
         return answer;
+    }
+
+    public boolean isGameOver() {
+        return gameOver;
     }
 
     // PRIVATE SUPPORT METHODS

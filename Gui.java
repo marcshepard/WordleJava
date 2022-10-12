@@ -7,16 +7,16 @@ import java.io.ObjectOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
+import java.io.File;
 
 // A GUI for the wordle app
 public class Gui extends JFrame implements KeyListener, ActionListener {
     private WordleEntryPanel wordlePanel;       // Main grid for entering guesses
     private ScrollableMessageBox messageBox;    // A place to give the user feedback text
     private WordleUserGame game;                // Underlying game engine
-    private boolean gameOver = false;
     private JButton[] buttons;
     private PersistedState persistedState;
+    private boolean cheatMode = false;
     private static final String[] buttonNames = {"New Game", "Hint", "Stats", "Cheat", "Settings"};
     private final static int NEW_GAME=0;
     private final static int HINT=1;
@@ -31,7 +31,6 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
         setBackground(ColorScheme.backgroundColor);
 
         persistedState = PersistedState.restore();
-        ColorScheme.setColorblindMode (persistedState.colorBlindMode);
 
         JPanel buttonPanel = new JPanel();
         buttons = new JButton[buttonNames.length];
@@ -68,13 +67,20 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
         addKeyListener(this);
 
         setVisible(true);
+
+        messageBox.setText("Just start typing to play a wordle game\n" +
+            "For a progressive series of hints, click hint\n" + 
+            "A hint before the first word is entered gives you insights to opening words\n" +
+            "If you type a word and don't hit enter, hint will also analyze your word for comparison\n" +
+            "Finally; cheat mode lets you cheat on the real wordle by entering the words you guessed and the colors you got back, and then you can request hints (kind of like a live wordlebot)\n" +
+            "Good luck and enjoy"
+        );
     }
 
     private void startGame() {
         game = new WordleUserGame(persistedState.hardMode);    // Create a new game
         wordlePanel.reset();                    // Reset the entry screen
         messageBox.setText("");            // Clear any messages
-        buttons[NEW_GAME].setEnabled(false);  // Disable the "New Game" button while game is in progress
     }
 
     public static void main (String[] args) {
@@ -85,23 +91,46 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     public void actionPerformed(ActionEvent e) {
         JButton button = (JButton)e.getSource();
         if (button == buttons[NEW_GAME]) { // New Game button
-            startGame();
-            gameOver = false;
+            if (!game.isGameOver()) {
+                messageBox.setText ("Finish your current game before starting a new one");
+            } else {
+                cheatMode = false;
+                startGame();
+            }
         } else if (button == buttons[HINT]) {
             messageBox.setText(game.getHint(wordlePanel.getWord()));
         } else if (button == buttons[STATS]) {
             messageBox.setText(persistedState.getStatsString());
         } else if (button == buttons[CHEAT]) {
-            messageBox.setText("TODO - implement cheat");
+            if (!game.isGameOver() && game.getTurn() != 0) {
+                messageBox.setText ("Finish your current game before starting a new cheat mode game");
+            } else {
+                cheatMode = true;
+                startGame();
+            }
         } else if (button == buttons[SETTINGS]) {
-            messageBox.setText("TODO - implement settings");
+            JDialog d = new JDialog(this, "Settings", true);
+            d.setLayout(new FlowLayout());  
+            JButton b = new JButton ("Toggle hard mode");
+            b.addActionListener (this);
+            d.add (new JLabel ("Click to turn 'hard mode' " + (persistedState.hardMode ? "off" : "on") + " and reset your stats"));
+            d.add (b);
+            d.setSize(400, 100);
+            d.setVisible(true);
+        } else if (button.getText().equals ("Toggle hard mode")) {
+            persistedState.hardMode = !persistedState.hardMode;
+            persistedState.gameResults = new int[7];
+            messageBox.setText("Hard mode is now " + (persistedState.hardMode ? "on" : "off"));
+            persistedState.save();
+            JDialog dialog = (JDialog) SwingUtilities.getRoot(button);
+            dialog.dispose();
         }
         requestFocus();
     }
 
     // Key listener events - we just use KeyPressed (ignore KeyReleased and KeyTyped)
     public void keyPressed(KeyEvent e) {
-        if (gameOver)
+        if (game.isGameOver())
             return;
     
         messageBox.setText("");
@@ -134,17 +163,13 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
                 }
             }
             if (pattern.equals(WordleUserGame.WINNING_PATTERN)) {
-                gameOver = true;
                 messageBox.setText("You won!");
                 persistedState.gameResults[game.getTurn()]++;
                 persistedState.save();
-                buttons[NEW_GAME].setEnabled(true);
             } else if (game.getTurn() > 6) {
-                gameOver = true;
                 messageBox.setText("You lost! The answer was " + game.getAnswer());
                 persistedState.gameResults[0]++;
                 persistedState.save();
-                buttons[NEW_GAME].setEnabled(true);
             } else {
                 wordlePanel.nextRow();
             }
@@ -187,6 +212,7 @@ class WordleEntryPanel extends JPanel {
         reset();
     }
 
+    // Reset the grid to get ready for a new game
     void reset () {
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
@@ -209,7 +235,7 @@ class WordleEntryPanel extends JPanel {
         }
     }
 
-    // Remove the current position back one column, erasing that letter
+    // Move the current position back one column, erasing the previous letter
     void back () {
         if (currentCol > 0)
             grid[currentRow][--currentCol].setText("");
@@ -262,29 +288,18 @@ class ScrollableMessageBox extends JScrollPane {
 class ColorScheme {
     static Color backgroundColor = Color.BLACK;
     static Color foregroundColor = Color.WHITE;
-    static Color matchColor = Color.GREEN;
+    static Color matchColor = new Color (0, 200, 0); // dark green (easier for color blind folks like me)
     static Color closeColor = Color.YELLOW;
     static Color missColor = Color.DARK_GRAY;
-
-    static void setColorblindMode (boolean enabled) {
-        if (enabled) {
-            matchColor = Color.ORANGE;
-            closeColor = Color.BLUE;
-        } else {
-            matchColor = Color.GREEN;
-            closeColor = Color.YELLOW;
-        }
-    }
 }
 
 // PersistedState - state we persist across games
 class PersistedState implements Serializable {
     boolean hardMode;
-    boolean colorBlindMode = true;
     int[] gameResults = new int[7]; // Each index has count of games won in that many turns (index 0 is for lost games)
-    private static String fileName = "GameState.ser";
+    private static String fileName = System.getProperty("user.home") + File.separatorChar + "WordleAppState.ser";
   
-    // Save state to GameState.ser
+    // Save state to file
     boolean save () {      
         try {
             FileOutputStream fos = new FileOutputStream(fileName);
@@ -299,7 +314,7 @@ class PersistedState implements Serializable {
         }
     }
   
-    // Returns GameState - serialized from GameState.ser if possible, else
+    // Returns GameState - serialized from saved file if possible, else
     // create a new default GameState object 
     static PersistedState restore () {      
         try {
