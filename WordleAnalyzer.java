@@ -26,7 +26,7 @@ public class WordleAnalyzer {
         " s [w] analyze stats on top starting words, or optionally your choice of starter word, w\n" +
         " c     cheat by having wordle analyzer help you with a live wordle\b" +
         " q     quit\n";
-    public static void main (String[] args) {
+    public static void old_main (String[] args) {
         System.out.println ("Welcome to wordle analyzer, which uses one of two AI algos to solve wordle puzzles.");
 
         boolean hardMode = true;
