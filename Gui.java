@@ -420,12 +420,16 @@ class PersistedState implements Serializable {
             return "No games have been played";
         }
 
-        String statsString = String.format ("Total games: %d \n", numGames);
-        statsString += String.format ("Games lost: %d (%d%%)\n", gameResults[0], 100*gameResults[0]/numGames);
-        statsString += String.format ("Games won: %d\n", numGames - gameResults[0]);
+        int gamesWon = numGames - gameResults[0];
+        String statsString = String.format ("Games won: %d out of %d (%d%%)\n", gamesWon, numGames, 100*gamesWon/numGames);
         for (int ix = 1; ix < gameResults.length; ix++) {
             statsString += String.format ("\t%d:\t%d\n", ix, gameResults[ix]);
         }
+        int numTurns = 0;
+        numTurns += gameResults[0]*7; // Count losses as 7 turns
+        for (int i = 1; i < gameResults.length; i++)
+            numTurns += gameResults[i]*i; 
+        statsString += String.format ("Average # turns (counting losses as 7 turns): %.1f\n", (double)numTurns/numGames);
 
         return statsString;
     }
