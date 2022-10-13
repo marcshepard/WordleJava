@@ -255,6 +255,8 @@ class WordleEntryPanel extends JPanel implements ActionListener {
     // Reset the panel to start a new game in either regular or cheat mode
     void reset (boolean cheatMode) {
         this.cheatMode = cheatMode;
+        currentRow = 0;
+        currentCol = 0;
         for (int r = 0; r < ROWS; r++) {
             for (JButton b : grid[r]) {
                 b.setBackground(ColorScheme.backgroundColor);
