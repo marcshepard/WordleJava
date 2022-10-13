@@ -8,13 +8,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.lang.Math;
 
-public class WordleUserGame {
+public class GameEngine {
     // INSTANCE VARIABLES
     private String answer;                      // Answer to this game
     private int turn;                           // Turn number (1-6 for active games, 7 if game was lost)
     private ArrayList<String> remainingAnswers; // The possible answers remaining (there are initially 2309 of them)
     private ArrayList<String> allowedGuesses;   // The possible guesses remaining (there are initially over 10k of them)
     private boolean hardMode;                   // Only guess remaining possible answers, or all answers?
+    private boolean cheatMode;                  // Cheat mode means answer is unknown; user supplies guess and color pattern return from wordle
     private int hintLevel = 0;                  // Hint level, each hint request provides more detail
     private boolean gameOver = false;
 
@@ -27,7 +28,8 @@ public class WordleUserGame {
     public static final double MATCHING_WEIGHT = .8;
 
     // Constructor picks a random word as the puzzle answer, initializes allowed guesses and remaining answer lists
-    public WordleUserGame (boolean hardMode) {
+    public GameEngine (boolean hardMode, boolean cheatMode) {
+        this.cheatMode = cheatMode;
         this.hardMode = hardMode;
         String[] possibleAnswers = WordleWords.getPossibleAnswers(); // the 2309 answers in Wordle
         answer = Utils.randChoice(possibleAnswers);
@@ -39,6 +41,12 @@ public class WordleUserGame {
     // Let the user take a guess against the current answer
     // Returns the color pattern, or null if invalid guess or out of turns
     public String guess (String guess) {
+        // Are we in cheat mode? Then need to call the other version of guess
+        if (cheatMode) {
+            return null;
+        }
+
+        // Game alrady over? Then no more guesses allowed
         if (gameOver) {
             return null;
         }
@@ -68,9 +76,22 @@ public class WordleUserGame {
         return pattern;
     }
 
+    public boolean isValidGuess (String guess) {
+        if (allowedGuesses.contains(guess.toLowerCase())) {
+            return true;
+        }
+        return false;
+    }
+
     // In cheat mode (for live wordle), let the user enter their guess and the pattern they got back
     // Returns true if guess and pattern are valid entries
     public boolean guess (String guess, String pattern) {
+        // Are not in cheat mode, then need to call the other version of guess
+        if (!cheatMode) {
+            return false;
+        }
+                
+        // Game alrady over? Then no more guesses allowed
         if (gameOver) {
             return false;
         }
@@ -84,7 +105,7 @@ public class WordleUserGame {
         // Else calculate the pattern and prune the lists
         ArrayList<String> answersAfterGuess = pruneList(remainingAnswers, guess, pattern);
         if (answersAfterGuess.size() == 0)
-            return false;
+            return false;   // Invalid pattern if it doesn't leave at least one possible remaining answer 
 
         remainingAnswers = answersAfterGuess;
 
@@ -156,23 +177,23 @@ public class WordleUserGame {
         HashMap<String, Double> expectedMatchCount = new HashMap<>();
         ArrayList<String> allAnswers = WordleWords.getPossibleAnswersArrayList();
 
+        if (word != null && word.length() == 5) {
+            word = word.toLowerCase();
+            s += String.format ("For your starting word %s\n", word);
+            s += String.format ("Average remaining answers: %.2f\n", expectedRemaining(word, allAnswers));
+            s += String.format ("Average matched letters: %.2f\n", expectedMatches(word, allAnswers, .8));
+        }
+
         for (String starterWord : WordleWords.getPossibleAnswers()) {
             expectedRemaining.put(starterWord, expectedRemaining(starterWord, allAnswers));
             expectedMatchCount.put(starterWord, expectedMatches(starterWord, allAnswers, .8));
         }
 
-        s += "15 starting words that lead to (on average) the smallest set of remaining answers\n";
+        s += "\n15 starting words that lead to (on average) the smallest set of remaining answers\n";
         s += getTop (expectedRemaining, 15, false);
 
         s += "\n15 starting words that lead to (on average) the most matched letters (counting 'right letter/wrong spot' as '.8' of a match\n";
         s += getTop (expectedMatchCount, 15, true);
-
-        if (word != null && word.length() == 5) {
-            word = word.toLowerCase();
-            s += "\nFor your starting word " + word + "\n";
-            s += "Average remaining answers: " + expectedRemaining(word, allAnswers) + "\n";
-            s += "Average matched letters: " + expectedMatches(word, allAnswers, .8)  + "\n";
-        }
 
         return s;
     }
@@ -182,7 +203,7 @@ public class WordleUserGame {
         String result = "";
         String key = findTop(h, largest);
         Double value = h.get(key);
-        result += key + "\t" + value + "\n";
+        result += String.format ("%s\t%.2f\n", key, value);
         if (n > 0) {
             h.remove(key);
             result += getTop(h, n-1, largest);
@@ -216,6 +237,10 @@ public class WordleUserGame {
 
     public boolean isGameOver() {
         return gameOver;
+    }
+
+    public boolean getCheatMode () {
+        return cheatMode;
     }
 
     // PRIVATE SUPPORT METHODS
