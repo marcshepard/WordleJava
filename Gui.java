@@ -46,20 +46,12 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
 
         wordlePanel = new WordleEntryPanel();
         wordlePanel.setBackground(ColorScheme.backgroundColor);
+        wordlePanel.setBorder(new EmptyBorder(20, getWidth()/7, 20, getWidth()/7));
         add(wordlePanel, BorderLayout.CENTER);
 
         messageBox = new ScrollableMessageBox();
         messageBox.setPreferredSize(new Dimension (getWidth(), getHeight()/5));
         add (messageBox, BorderLayout.SOUTH);
-
-        JPanel p = new JPanel();
-        p.setPreferredSize(new Dimension (getWidth()/10, getHeight()/8));
-        p.setBackground(ColorScheme.backgroundColor);
-        add (p, BorderLayout.EAST);
-        p = new JPanel();
-        p.setPreferredSize(new Dimension (getWidth()/10, getHeight()/8));
-        p.setBackground(ColorScheme.backgroundColor);
-        add (p, BorderLayout.WEST);
 
         startGame(false);
         
@@ -136,7 +128,6 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
         if (game.isGameOver())
             return;
     
-        //messageBox.setText("");
         int code = e.getKeyCode();
         if (code >= KeyEvent.VK_A && code <= KeyEvent.VK_Z)
             wordlePanel.setChar(KeyEvent.getKeyText(code));
@@ -145,6 +136,7 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
             wordlePanel.back();
 
         if (code == KeyEvent.VK_ENTER && !game.getCheatMode()) {
+            messageBox.setText("");
             String pattern = game.guess(wordlePanel.getWord());
 
             if (pattern == null) {
