@@ -356,4 +356,103 @@ public class GameEngine {
 
         return expected;
     }
+
+    /*
+    // Command-line tool to evaluate algos
+    public static void main (String[] args) {
+        evaluateAlgo (true, false, "raise");
+    }
+    */
+
+    // Analyze the currently selected algo: avg steps, # failures, hardest words
+    public static void evaluateAlgo (boolean hardMode, boolean useLeastRemainingAlgo, String starterWord) {
+        String[] possibleAnswers = WordleWords.getPossibleAnswers();
+        int answersAnalyzed = 0;    // Analyze all possible answers
+        int totalSteps = 0;         // Count total steps for all words (e.g., 3 + 4 + ...)
+        int numFailures = 0;        // Failures are words that took more than 6 steps to solve
+        ArrayList<String> hardestWords = new ArrayList<>(); // Keep track of the hardest words
+        int maxSteps = 0;           // Defined by having the largest number of steps required to solve them
+
+        for (String answer : possibleAnswers) {
+            GameEngine g = new GameEngine(hardMode, false);
+            g.guess(starterWord);
+            while (!g.isGameOver()) {
+                if (useLeastRemainingAlgo) {
+                    g.guess (g.getLeastRemainingGuess());
+                } else {
+                    g.guess (g.getMostMatchesGuess());
+                }
+            }
+            answersAnalyzed++;
+            int turns = g.getTurn();
+            totalSteps += turns;
+            if (turns > 6) {
+                numFailures++;
+            }
+            if (turns > maxSteps) {
+                maxSteps = turns;
+                hardestWords.clear();
+            }
+            if (turns == maxSteps) {
+                hardestWords.add(answer);
+            }
+            if (answersAnalyzed % 100 == 0)
+                System.out.println ("Analyzed " + answersAnalyzed + " (out of 2309)...");
+        }
+        System.out.println("Avg steps to solve: " + (double)totalSteps/possibleAnswers.length);
+        System.out.println("Number of failures (>6 steps): " + numFailures + " out of " + possibleAnswers.length);
+        System.out.println("The hardest words took " + maxSteps + " steps: " + hardestWords);
+    }
+
+    // Get the guess that minimized expected remaining words
+    public String getLeastRemainingGuess () {
+        String bestGuess = remainingAnswers.get(0);
+        double bestExpectedRemaining = remainingAnswers.size();
+        for (String guess : remainingAnswers) {
+            double expectedRemaining = expectedRemaining(guess, remainingAnswers);
+            if (expectedRemaining < bestExpectedRemaining) {
+                bestExpectedRemaining = expectedRemaining;
+                bestGuess = guess;
+            }
+        }
+        return bestGuess;
+    }
+
+    // Get the guess that maximizes expected letter matches of the remaining words
+    public String getMostMatchesGuess () {
+        String bestGuess = remainingAnswers.get(0);
+        double bestExpectedMatches = 0;
+        for (String guess : remainingAnswers) {
+            double expectedMatches = expectedMatches(bestGuess, remainingAnswers, .8);
+            if (expectedMatches > bestExpectedMatches) {
+                bestExpectedMatches = expectedMatches;
+                bestGuess = guess;
+            }
+        }
+        return bestGuess;
+    }
+}
+
+class Utils {
+
+    // Pick a random integer in a given range
+    public static int randInt (int min, int max) {
+        return (int)(Math.random() * (max-min+1)) + min;
+    }
+
+    // Pick a random String from an array
+    public static String randChoice (String[] strings) {
+        return strings[randInt(0, strings.length - 1)];
+    }
+
+    // Count the number of character occurances in a String
+    public static int count (String s, char c) {
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (c == s.charAt(i)) {
+                count++;
+            }
+        }
+        return count;
+    }
 }

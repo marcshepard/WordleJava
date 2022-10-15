@@ -26,12 +26,8 @@ The program is made up of the following modules:
 * Gui.java - The graphical user interface
 * GameEngine.java - The underlying game enginer
 * WordleWords.java - The list of possible answers and the list of allowed guesses
-* Utils.java - a few common utilities
-* WordleAnalyzer.java is an obsolete file that was the original command line interface I used to test and evaluate the
-*   algorithms so see how they compared to wordlebots. After creating the gui, I renamed the "main" method here to
-*   "old_main" (so GUI is now the main entry point), but it can be renamed and run in order evaluate the algorithms
 
-Summary of insights (from WordleAnalyzer.java):
+Summary of insights (from GameEngine.java's AnalyzeAlgo method):
 1) The "minimize expected remaining words" algo is only slightly worse than the NY Times wordlebot algo,
 taking 3.52 and 3.62 steps (regular and hard mode) vs 3.44 and 3.55. This algorithm uses "raise" as the starting word, as
 that word, on average leaves an average of 60 remaining possible answers afterwards (10 less than any other starter word).
