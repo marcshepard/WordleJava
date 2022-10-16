@@ -1,8 +1,7 @@
 This wordle app was build to explore wordle strategies and algorithms
 
 The NY Times Wordlebot uses information theory to guess the word that minimizes the expected number of remaining steps.
-It solves puzzles in an average of 3.5 turns (3.44 for regular mode, 3.55 for hard mode) using an algo that is incredibly
-complicated - something no human could ever do.
+It solves puzzles in an average of 3.5 turns (3.44 for regular mode, 3.55 for hard mode) using an algo that is incredibly complicated - something no human could ever do.
 
 I wanted to experiment with how simpler algorithms might compare (including more human-like algos), as well as the effects
 of using different starter words (something endlessly debated on social media). To that end, I build two algos:
