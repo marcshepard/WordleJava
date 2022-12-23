@@ -16,8 +16,8 @@ public class Gui extends JFrame implements KeyListener, ActionListener {
     private WordleEntryPanel wordlePanel;       // Main grid for entering guesses
     private ScrollableMessageBox messageBox;    // A place to give the user feedback text
     private GameEngine game;                    // Underlying game engine
-    private JButton[] buttons;
-    private PersistedState persistedState;
+    private JButton[] buttons;                  // Buttons to start games, get hints, see stats, change settings
+    private PersistedState persistedState;      // Persist the players stats across sessions
     private static final String[] buttonNames = {"New Game", "Hint", "Stats", "Cheat", "Settings"};
     private final static int NEW_GAME=0;
     private final static int HINT=1;
